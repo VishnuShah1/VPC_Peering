@@ -1,0 +1,130 @@
+{
+  "Parameters":{
+    "KeyName1": {
+      "Description": "MyKP",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "ConstraintDescription": "MyKP"
+    }  
+  },
+  "Resources":{
+    "VPC1":{
+      "Type" : "AWS::EC2::VPC",
+      "Properties" : {
+        "CidrBlock" : "10.0.0.0/16",
+        "EnableDnsSupport" : "true",
+        "EnableDnsHostnames" : "true"
+      }
+    },
+    "Subnet1":{
+      "Type" : "AWS::EC2::Subnet",
+      "Properties" : {
+        "AvailabilityZone" : "us-east-1a",
+        "CidrBlock" : "10.0.1.0/24",
+        "MapPublicIpOnLaunch" : "True",
+        "VpcId" : {
+          "Ref":"VPC1"
+        }
+      }
+    },
+    "IGW" : {
+      "Type" : "AWS::EC2::InternetGateway"
+   },
+    "AttachGateway":{
+      "Type" : "AWS::EC2::VPCGatewayAttachment",
+      "Properties" : {
+        "InternetGatewayId" : {"Ref":"IGW"},
+        "VpcId" : {"Ref":"VPC1"}
+      }
+    },
+    "RT1":{
+      "Type" : "AWS::EC2::RouteTable",
+      "Properties" : {
+        "VpcId" : {"Ref":"VPC1"}
+      }
+    },
+    "Route1" : {
+      "Type" : "AWS::EC2::Route",
+      "DependsOn" : "AttachGateway",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "RT1" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "GatewayId" : { "Ref" : "IGW" }
+      }
+    },
+    "Subnet1andRT1Association" : {
+      "Type" : "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "Subnet1" },
+        "RouteTableId" : { "Ref" : "RT1" }
+      }
+    },
+    "NACL1" : {
+      "Type" : "AWS::EC2::NetworkAcl",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VPC1" }
+      }
+    },
+    "NACL1InboundRule": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "NACL1"
+        },
+        "RuleNumber": 400,
+        "Protocol": -1,
+        "RuleAction": "allow",
+        "CidrBlock": "0.0.0.0/0"
+      }
+    },
+    "NACL1OutboundRule": {
+      "Type": "AWS::EC2::NetworkAclEntry",
+      "Properties": {
+        "NetworkAclId": {
+          "Ref": "NACL1"
+        },
+        "RuleNumber": 400,
+        "Protocol": -1,
+        "Egress": true,
+        "RuleAction": "allow",
+        "CidrBlock": "0.0.0.0/0"
+      }
+    },
+    "mySubnetNetworkAclAssociation" : {
+      "Type" : "AWS::EC2::SubnetNetworkAclAssociation",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "Subnet1" },
+        "NetworkAclId" : { "Ref" : "NACL1" }
+      }
+    },
+    "InstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription": "Allow all IPv4 traffic",
+        "VpcId" : {"Ref" : "VPC1"},
+        "SecurityGroupIngress" : [{
+          "IpProtocol" : -1,
+          "FromPort" : -1,
+          "ToPort" : -1,
+          "CidrIp" : "0.0.0.0/0"
+        }],
+        "SecurityGroupEgress" : [{
+          "IpProtocol" : -1,
+          "FromPort" : -1,
+          "ToPort" : -1,
+          "CidrIp" : "0.0.0.0/0"
+        }]
+      }
+    },
+    "NorthernVirgianaEC2":{
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "AvailabilityZone" : "us-east-1a",
+        "ImageId" : "ami-033b95fb8079dc481",
+        "InstanceType" : "t2.micro",
+        "SecurityGroupIds": [ { "Ref": "InstanceSecurityGroup" } ],
+        "SubnetId": { "Ref": "Subnet1" },
+        "KeyName": { "Ref": "KeyName1"}
+      }
+    }
+  }
+}
